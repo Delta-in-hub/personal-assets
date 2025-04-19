@@ -53,14 +53,6 @@ boost_1_77_0.tar.bz2 greatsql-802516-mtr-passed.md greatsql-8.0.32-26.tar.xz    
 
 
 
-
-
-测试共执行 139 个测试项，主要涵盖了 GreatSQL 源码编译、RPM安装、二进制包安装、MGR增强、Binlog读取限速、Clone复制数据时自动最新节点、并行LOAD DATA、异步删除大表、非阻塞式DDL、NUMA亲和性优化、Oracle兼容、Clone备份加密、Clone增量备份、Clone压缩备份、审计、数据脱敏、最后登录信息等主要功能特性等方面，主要功能均通过测试，无风险，整体核心功能稳定正常。
-
-
-
-
-
 ## 测试执行
 
 
@@ -470,7 +462,99 @@ Build failed with exit code 1
 
 
 
-### 修改后编译成功
+重新编译, 依然报错, 其中主要报错内容如下:
+
+
+
+```
+[  756s] /home/abuild/rpmbuild/BUILD/greatsql-8.0.32-26/greatsql-8.0.32-26/extra/coredumper/src/thread_lister.c:57:15: error: call to undeclared function 'getpid'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+[  756s]    57 |   pid_t pid = getpid();
+[  756s]       |               ^
+[  756s] 1 warning and 1 error generated.
+[  756s] make[2]: *** [extra/coredumper/src/CMakeFiles/coredumper.dir/build.make:90: extra/coredumper/src/CMakeFiles/coredumper.dir/thread_lister.c.o] Error 1
+[  756s] make[1]: *** [CMakeFiles/Makefile2:5646: extra/coredumper/src/CMakeFiles/coredumper.dir/all] Error 2
+[  756s] make[1]: *** Waiting for unfinished jobs....
+```
+
+
+
+
+
+`extra/coredumper/src/thread_lister.c` 文件内容如下:
+
+```c
+/* Copyright (c) 2005-2007, Google Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ * copyright notice, this list of conditions and the following disclaimer
+ * in the documentation and/or other materials provided with the
+ * distribution.
+ *     * Neither the name of Google Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * ---
+ * Author: Markus Gutschke
+ */
+
+#include "thread_lister.h"
+
+#include <stdio.h> /* needed for NULL on some powerpc platforms (?!) */
+#include <sys/prctl.h>
+
+#include "linuxthreads.h"
+/* Include other thread listers here that define THREADS macro
+ * only when they can provide a good implementation.
+ */
+
+#ifndef THREADS
+
+/* Default trivial thread lister for single-threaded applications,
+ * or if the multi-threading code has not been ported, yet.
+ */
+
+int ListAllProcessThreads(void *parameter, ListAllProcessThreadsCallBack callback, ...) {
+  int rc;
+  va_list ap;
+
+  int dumpable = prctl(PR_GET_DUMPABLE, 0);
+  if (!dumpable) prctl(PR_SET_DUMPABLE, 1);
+  va_start(ap, callback);
+  pid_t pid = getpid();
+  rc = callback(parameter, 1, &pid, ap);
+  va_end(ap);
+  if (!dumpable) prctl(PR_SET_DUMPABLE, 0);
+  return rc;
+}
+
+int ResumeAllProcessThreads(int num_threads, pid_t *thread_pids) { return 1; }
+
+#endif
+
+```
+
+
+
+在 `extra/coredumper/src/thread_lister.c` 文件开头加上 `#include <unistd.h>`  后, 尝试重新编译.
 
 
 
