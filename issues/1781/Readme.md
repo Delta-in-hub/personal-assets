@@ -558,6 +558,47 @@ int ResumeAllProcessThreads(int num_threads, pid_t *thread_pids) { return 1; }
 
 
 
+修改后依然报错， 报错内容主要如下：
+
+
+
+```c
+[ 5211s] [ 52%] Building C object plugin/innodb_memcached/innodb_memcache/CMakeFiles/innodb_engine.dir/cache-src/assoc.c.o
+[ 5212s] clang: warning: argument unused during compilation: '-fstack-clash-protection' [-Wunused-command-line-argument]
+[ 5212s] /home/abuild/rpmbuild/BUILD/greatsql-8.0.32-26/greatsql-8.0.32-26/plugin/innodb_memcached/daemon_memcached/daemon/memcached.c:4073:18: error: incompatible pointer to integer conversion initializing 'char' with an expression of type 'char *'; dereference with * [-Wint-conversion]
+[ 5212s]  4073 |             bool next_get = (key_token + 1)->value;
+[ 5212s]       |                  ^          ~~~~~~~~~~~~~~~~~~~~~~
+[ 5212s]       |                             *
+
+```
+
+
+
+
+
+`plugin/innodb_memcached/daemon_memcached/daemon/memcached.c` 文件中，存在类型转化错误。
+
+
+
+`static inline char* process_get_command(conn *c, token_t *tokens, size_t ntokens, bool return_cas) ` 函数中的 `bool next_get = (key_token + 1)->value;` , 
+
+```c
+bool next_get  // 是 bool 类型 （aka, char类型）
+= (key_token + 1)->value;  // 这里的 value 是 char* 类型
+```
+
+
+
+这里的意图应该是判断 `value` 是否为空。
+
+
+
+修改该文件中，该行代码为：
+
+```c
+bool next_get = ((key_token + 1)->value != NULL);
+```
+
 
 
 
