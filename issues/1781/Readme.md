@@ -605,5 +605,52 @@ bool next_get = ((key_token + 1)->value != NULL);
 
 
 
+编译依然报错， 报错如下：
+
+
+
+```
+:
+[10499s] /home/abuild/rpmbuild/BUILD/greatsql-8.0.32-26/boost_1_77_0/boost/mpl/aux_/integral_wrapper.hpp:73:31: error: integer value -1 is outside the valid range of values [0, 3] for the enumeration type 'udt_builtin_mixture_enum' [-Wenum-constexpr-conversion]
+[10499s] /home/abuild/rpmbuild/BUILD/greatsql-8.0.32-26/boost_1_77_0/boost/mpl/aux_/integral_wrapper.hpp:73:31: error: integer value -1 is outside the valid range of values [0, 3] for the enumeration type 'int_float_mixture_enum' [-Wenum-constexpr-conversion]
+[10511s] /home/abuild/rpmbuild/BUILD/greatsql-8.0.32-26/boost_1_77_0/boost/mpl/aux_/integral_wrapper.hpp:73:31: error: integer value -1 is outside the valid range of values [0, 3] for the enumeration type 'udt_builtin_mixture_enum' [-Wenum-constexpr-conversion]
+[10511s] /home/abuild/rpmbuild/BUILD/greatsql-8.0.32-26/boost_1_77_0/boost/mpl/aux_/integral_wrapper.hpp:73:31: error: integer value -1 is outside the valid range of values [0, 3] for the enumeration type 'int_float_mixture_enum' [-Wenum-constexpr-conversion]
+[10585s] /home/abuild/rpmbuild/BUILD/greatsql-8.0.32-26/boost_1_77_0/boost/mpl/aux_/integral_wrapper.hpp:73:31: error: integer value -1 is outside the valid range of values [0, 3] for the enumeration type 'udt_builtin_mixture_enum' [-Wenum-constexpr-conversion]
+[10586s] /home/abuild/rpmbuild/BUILD/greatsql-8.0.32-26/boost_1_77_0/boost/mpl/aux_/integral_wrapper.hpp:73:31: error: integer value -1 is outside the valid range of values [0, 3] for the enumeration type 'int_float_mixture_enum' [-Wenum-constexpr-conversion]
+[10593s] /home/abuild/rpmbuild/BUILD/greatsql-8.0.32-26/boost_1_77_0/boost/mpl/aux_/integral_wrapper.hpp:73:31: error: integer value -1 is outside the valid range of values [0, 3] for the enumeration type 'udt_builtin_mixture_enum' [-Wenum-constexpr-conversion]
+[10593s] /home/abuild/rpmbuild/BUILD/greatsql-8.0.32-26/boost_1_77_0/boost/mpl/aux_/integral_wrapper.hpp:73:31: error: integer value -1 is outside the valid range of values [0, 3] for the enumeration type 'int_float_mixture_enum' [-Wenum-constexpr-conversion]
+[10594s] 1 warning and 2 errors generated.
+[10602s] 1 warning and 2 errors generated.
+
+```
+
+
+
+根据相关报错， 搜索到 boost 库的 issue https://github.com/boostorg/mpl/issues/69
+
+其中提到：
+
+> It will be fixed in the next release, 1.86.
+
+
+
+为了在当前 boost 版本运行， 仿照 https://github.com/boostorg/mpl/pull/77 修改 文件 `boost/mpl/aux_/integral_wrapper.hpp`
+
+修改为：
+
+```c
+#if BOOST_WORKAROUND(__EDG_VERSION__, <= 243) \
+    || __cplusplus >= 201103L
+ private:
+```
+
+
+
+重新编译。
+
+
+
+
+
 
 
