@@ -966,6 +966,10 @@ fi
 
 
 
+mysql_client_test 以上的testcase 全部通过。
+
+
+
 
 
 
