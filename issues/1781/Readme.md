@@ -33,7 +33,7 @@ boost_1_77_0.tar.bz2 greatsql-802516-mtr-passed.md greatsql-8.0.32-26.tar.xz    
 
 关键词：GreatSQL
 
-摘要：按照 GreatSQL 8.0.32-26 测试用例要求，部署 openEuler 25.03 测试镜像环境，对 GreatSQL 的源码编译、RPM安装、二进制包安装、主要功能进行测试。
+摘要：按照 GreatSQL 8.0.32-26 测试用例要求，部署 openEuler 25.03 测试镜像环境，对 GreatSQL 的源码编译、RPM安装、主要功能进行测试。
 
 
 
@@ -43,11 +43,39 @@ boost_1_77_0.tar.bz2 greatsql-802516-mtr-passed.md greatsql-8.0.32-26.tar.xz    
 
 
 
+目前，在OBS仓库中的 https://build.tarsier-infra.isrc.ac.cn/package/show/Mega:25.03:Everything/greatsql  构建情况为[failed](https://build.tarsier-infra.isrc.ac.cn/package/live_build_log/Mega:25.03:Everything/greatsql/standard_riscv64/riscv64)。
+
+---
+
+
+
 在 Qemu RISCV64 中启动 openEuler 25.03测试镜像，在此基础上进行 GreatSQL 8.0.32-26 测试，GreatSQL 包从 `Mega:25.03:Everything/greatsql` 仓库中拉取.
 
+`osc build standard_riscv64 riscv64`编译, 编译报错， **历经多次编译报错**， 修改源代码， 重新打tar包后， 重新编译， **最终编译成功**。（**单次`osc build` 需要超过10小时**）
+
+先后修改源代码:
+
+- 构建环境中的
+
+  - `/usr/lib/rpm/openEuler/macros`
+
+- greatsql中的
+
+  - `extra/coredumper/src/thread_lister.c`
+
+  - `plugin/innodb_memcached/daemon_memcached/daemon/memcached.c`
+
+- boost中的
+
+  - `boost_1_77_0/boost/mpl/aux_/integral_wrapper.hpp`
 
 
-`osc build standard_riscv64 riscv64`编译, greatsql 未能够成功编译, 编译报错原因主要为 `clang: error: unknown argument: '-fgcc-compatible'`
+
+最终，编译成功，构建了RPM包，可以正常安装，并成功运行起greasql.
+
+测试部分，使用 **mysqlslap** 测试， 指定生成的 SQL 负载类型为混合模式（`mixed`），即测试中将包含 SELECT 查询、INSERT 插入、UPDATE 更新和 DELETE 删除等多种操作。**mysql_client_test** 测试，涵盖基础数据操作（增删改查、建删表/重命名）、数据类型支持（整型、浮点、字符串、日期、DECIMAL 等）、事务控制（InnoDB 事务）、预处理语句（参数绑定、多语句执行、空值处理）、复杂查询逻辑（视图、子查询、联合查询、表连接）。
+
+**测试结果良好 ，显示 GreatSQL 主要功能可以正常使用。**
 
 
 
@@ -647,6 +675,294 @@ bool next_get = ((key_token + 1)->value != NULL);
 
 
 重新编译。
+
+
+
+### 最终编译成功
+
+
+
+最终，终于编译通过了：
+
+```
+[37705s] localhost.localdomain finished "build greatsql.spec" at Wed Apr 16 14:51:41 UTC 2025.
+[37705s] 
+
+/var/tmp/build-root/standard_riscv64-riscv64/home/abuild/rpmbuild/SRPMS/greatsql-8.0.32-26.6.oe2503.src.rpm
+
+/var/tmp/build-root/standard_riscv64-riscv64/home/abuild/rpmbuild/RPMS/riscv64/greatsql-test-8.0.32-26.6.oe2503.riscv64.rpm
+/var/tmp/build-root/standard_riscv64-riscv64/home/abuild/rpmbuild/RPMS/riscv64/greatsql-shared-8.0.32-26.6.oe2503.riscv64.rpm
+/var/tmp/build-root/standard_riscv64-riscv64/home/abuild/rpmbuild/RPMS/riscv64/greatsql-client-8.0.32-26.6.oe2503.riscv64.rpm
+/var/tmp/build-root/standard_riscv64-riscv64/home/abuild/rpmbuild/RPMS/riscv64/greatsql-mysql-router-8.0.32-26.6.oe2503.riscv64.rpm
+/var/tmp/build-root/standard_riscv64-riscv64/home/abuild/rpmbuild/RPMS/riscv64/greatsql-icu-data-files-8.0.32-26.6.oe2503.riscv64.rpm
+/var/tmp/build-root/standard_riscv64-riscv64/home/abuild/rpmbuild/RPMS/riscv64/greatsql-devel-8.0.32-26.6.oe2503.riscv64.rpm
+/var/tmp/build-root/standard_riscv64-riscv64/home/abuild/rpmbuild/RPMS/riscv64/greatsql-server-8.0.32-26.6.oe2503.riscv64.rpm
+```
+
+
+
+编译 greatsql ，在 QEMU 16 CPU, 32G RAM 的配置下， **单单OSC BUILD就使用了 10 个多小时**。 
+
+我手头能用的计算资源对这个任务显得捉襟见肘， 对日常学习工作影响较大。
+
+
+
+### RPM包安装
+
+
+
+根据官方文档 https://greatsql.cn/docs/8.0.32-24/3-quick-start/3-1-quick-start-with-rpm.html ， 安装。
+
+
+
+首先安装依赖`yum install -y pkg-config perl libaio-devel numactl-devel numactl-libs net-tools openssl openssl-devel jemalloc jemalloc-devel perl-Data-Dumper perl-Digest-MD5`
+
+然后安装编译后的rpm包 `rpm -ivh --nodeps greatsql*rpm`
+
+安装成功：
+
+```
+root@localhost /v/t/b/s/h/a/r/R/riscv64# rpm -ivh --nodeps greatsql*rpm
+Verifying...                          ################################# [100%]
+Preparing...                          ################################# [100%]
+Updating / installing...
+   1:greatsql-shared-8.0.32-26.6.oe250################################# [ 14%]
+   2:greatsql-client-8.0.32-26.6.oe250################################# [ 29%]
+   3:greatsql-icu-data-files-8.0.32-26################################# [ 43%]
+   4:greatsql-server-8.0.32-26.6.oe250################################# [ 57%]
+   5:greatsql-test-8.0.32-26.6.oe2503 ################################# [ 71%]
+   6:greatsql-mysql-router-8.0.32-26.6################################# [ 86%]
+   7:greatsql-devel-8.0.32-26.6.oe2503################################# [100%]
+
+```
+
+
+
+### 运行 greatsql
+
+
+
+```
+root@localhost ~/M/greatsql# vim /lib/systemd/system/mysqld.service
+root@localhost ~/M/greatsql# systemctl daemon-reload
+root@localhost ~/M/greatsql# systemctl start mysqld
+root@localhost ~/M/greatsql# systemctl status mysqld
+● mysqld.service - MySQL Server
+     Loaded: loaded (/usr/lib/systemd/system/mysqld.service; enabled; preset: disabled)
+     Active: active (running) since Thu 2025-04-17 07:33:03 CST; 8s ago
+       Docs: man:mysqld(8)
+             http://dev.mysql.com/doc/refman/en/using-systemd.html
+    Process: 62710 ExecStartPre=/usr/bin/mysqld_pre_systemd (code=exited, status=0/SUCCESS)
+   Main PID: 62805 (mysqld)
+     Status: "Server is operational"
+     Memory: 554.5M ()
+     CGroup: /system.slice/mysqld.service
+             └─62805 /usr/sbin/mysqld
+
+Apr 17 07:32:39 localhost.localdomain systemd[1]: Starting MySQL Server...
+Apr 17 07:32:58 localhost.localdomain (mysqld)[62805]: mysqld.service: Referenced but unset environment variable evaluates to an e>
+Apr 17 07:33:03 localhost.localdomain systemd[1]: Started MySQL Server.
+
+
+root@localhost ~/M/greatsql# grep -i root /var/log/mysqld.log
+2025-04-16T23:32:48.390512Z 6 [Note] [MY-010454] [Server] A temporary password is generated for root@localhost: bs/u<7I&kxt.
+
+
+root@localhost ~/M/greatsql# mysql -uroot -p
+Enter password: 
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 8
+Server version: 8.0.32-26
+
+Copyright (c) 2021-2024 GreatDB Software Co., Ltd
+Copyright (c) 2009-2024 Percona LLC and/or its affiliates
+Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> \s
+ERROR 1820 (HY000): You must reset your password using ALTER USER statement before executing this statement.
+mysql> alter user user() identified by 'GreatSQL@202X';
+Query OK, 0 rows affected (0.08 sec)
+
+```
+
+
+
+成功登陆并执行命令
+
+```
+mysql> \s
+--------------
+mysql  Ver 8.0.32-26 for Linux on riscv64 (GreatSQL (GPL), Release 26, Revision a68b3034c3d)
+
+Connection id:          8
+Current database:
+Current user:           root@localhost
+SSL:                    Not in use
+Current pager:          stdout
+Using outfile:          ''
+Using delimiter:        ;
+Server version:         8.0.32-26
+Protocol version:       10
+Connection:             Localhost via UNIX socket
+Server characterset:    utf8mb4
+Db     characterset:    utf8mb4
+Client characterset:    utf8mb4
+Conn.  characterset:    utf8mb4
+UNIX socket:            /var/lib/mysql/mysql.sock
+Binary data as:         Hexadecimal
+Uptime:                 1 min 37 sec
+
+Threads: 2  Questions: 7  Slow queries: 1  Opens: 133  Flush tables: 3  Open tables: 49  Queries per second avg: 0.072
+--------------
+
+mysql> show databases;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| mysql              |
+| performance_schema |
+| sys                |
++--------------------+
+4 rows in set (0.06 sec)
+
+```
+
+
+
+
+
+### mysqlslap 测试
+
+mysqlslap是mysql自带的基准测试工具. 
+
+以下测试指定生成的 SQL 负载类型为混合模式（`mixed`），即测试中将包含 SELECT 查询、INSERT 插入、UPDATE 更新和 DELETE 删除等多种操作。
+
+
+
+```
+root@localhost /v/t/b/s/h/a/r/R/riscv64# mysqlslap -uroot -pGreatSQL@202X --concurrency=50 --iterations=10 --auto-generate-sql --auto-generate-sql-load-type=mixed --auto-generate-sql-add-autoincrement
+mysqlslap: [Warning] Using a password on the command line interface can be insecure.
+Benchmark
+        Average number of seconds to run all queries: 0.260 seconds
+        Minimum number of seconds to run all queries: 0.246 seconds
+        Maximum number of seconds to run all queries: 0.294 seconds
+        Number of clients running queries: 50
+        Average number of queries per client: 0
+
+
+```
+
+
+
+
+
+### mysql_client_test 测试
+
+mysql_client_test 是 MySQL 提供的一个测试工具，主要是一个专注于 MySQL 客户端库测试的工具，适用于开发者和数据库管理员验证客户端库的功能、性能和兼容性。
+
+测试用例涵盖基础数据操作（增删改查、建删表/重命名）、数据类型支持（整型、浮点、字符串、日期、DECIMAL 等）、事务控制（InnoDB 事务）、预处理语句（参数绑定、多语句执行、空值处理）、复杂查询逻辑（视图、子查询、联合查询、表连接）。
+
+
+
+运行以下测试：
+
+```
+#!/bin/bash
+
+# MySQL 连接参数
+HOST="127.0.0.1"
+USER="root"
+PASSWORD="GreatSQL@202X"
+
+# 测试用例列表
+TEST_CASES=(
+    "client_query"
+    "test_insert"
+    "test_update"
+    "test_simple_delete"
+    "test_select"
+    "test_create_drop"
+    "test_rename"
+    "test_fetch_long"
+    "test_fetch_short"
+    "test_fetch_tiny"
+    "test_fetch_bigint"
+    "test_fetch_float"
+    "test_fetch_double"
+    "test_fetch_str"
+    "test_fetch_date"
+    "test_temporal_param"
+    "test_decimal_bug"
+    "test_tran_innodb"
+    "test_simple_update"
+    "test_simple_delete"
+    "test_prepare"
+    "test_prepare_simple"
+    "test_prepare_noparam"
+    "test_ps_null_param"
+    "test_bind_result"
+    "test_bind_result_ext"
+    "test_prepare_multi_statements"
+    "test_view"
+    "test_view_where"
+    "test_view_star"
+    "test_subselect"
+    "test_union"
+    "test_join"
+    "test_left_join_view"
+    "test_warnings"
+    "test_parse_error_and_bad_length"
+    "test_time_zone"
+)
+
+# 初始化失败用例数组
+FAILED_CASES=()
+
+# 逐一运行测试用例
+for TEST_CASE in "${TEST_CASES[@]}"; do
+    echo "----------------------------------------"
+    echo "Running test case: $TEST_CASE"
+    
+    # 执行测试并直接输出到控制台
+    mysql_client_test \
+        --host="$HOST" \
+        --user="$USER" \
+        --password="$PASSWORD" \
+        "$TEST_CASE"
+    
+    # 检查测试是否成功
+    if [ $? -eq 0 ]; then
+        echo "Test case '$TEST_CASE' completed successfully."
+    else
+        echo "Test case '$TEST_CASE' failed. Check the output above for details."
+        FAILED_CASES+=("$TEST_CASE")
+    fi
+    
+    echo "----------------------------------------"
+done
+
+# 输出所有测试结果
+echo "All test cases have been executed."
+echo ""
+
+# 如果有失败的用例，输出它们
+if [ ${#FAILED_CASES[@]} -gt 0 ]; then
+    echo "Failed test cases (${#FAILED_CASES[@]}):"
+    for FAILED_CASE in "${FAILED_CASES[@]}"; do
+        echo "  - $FAILED_CASE"
+    done
+else
+    echo "All test cases passed successfully!"
+fi
+
+```
 
 
 
